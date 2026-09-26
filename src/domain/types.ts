@@ -58,12 +58,21 @@ export type Candidate = {
   emails?: string[];
   socials?: Record<string, string>;
   foundVia?: FoundVia[];
+  foundOn?: string;
   tier?: CreatorTier;
   engagementScore?: number;
   activityScore?: number;
   relativeEngagement?: number | null;
   interactionQuality?: number | null;
   recencyMultiplier?: number;
+  hardware?: {
+    gpu?: string;
+    cpu?: string;
+    memory?: string;
+    storage?: string;
+  };
+  partnerships?: string[];
+  otherPlatforms?: string[];
 };
 
 export type FitScore = {
@@ -80,6 +89,22 @@ export type FitScore = {
   redFlags: string[];
   competitorSponsor: boolean;
   relativeEngagement: number | null;
+  hardwareFit: number;
+  pitchAngle?: string;
+  predictedSales?: number;
+  salesDriver?: "views" | "engagement";
+  gpuDemandLift?: number;
+  sentiment?: "positive" | "neutral" | "skeptical" | "negative";
+  expectedClicks?: number;
+  ctr?: number;
+  alignedWeek?: string;
+  alignedSku?: string;
+  alignedRegion?: string;
+  temporalAnchor?: boolean;
+  viralOutlier?: boolean;
+  volumeOk?: boolean;
+  gameNoiseFiltered?: number;
+  interactionVolume?: number;
 };
 
 export type SuggestedPitch = {

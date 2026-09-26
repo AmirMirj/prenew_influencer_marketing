@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { computeCampaign, EU_CAMPAIGN_BENCHMARKS } from "@/src/domain/campaign";
+import { GAMING_CTR, TECH_CTR } from "@/src/domain/forecast";
 import type { Shortlist, ShortlistItem } from "@/src/domain/types";
 import { compactNumber, computeShortlistStats, percentLabel, postSeries, sparklinePath } from "./stats";
 
@@ -13,7 +15,7 @@ export function Insights({
 }) {
   const stats = computeShortlistStats({ ...shortlist, items });
   return (
-    <div className="flex flex-col gap-8">
+    <div id="demo-insights" className="flex scroll-mt-40 flex-col gap-8">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
         <Stat label="Hidden gems" value={String(stats.gems)} />
         <Stat label="With email" value={`${stats.emails}/${stats.creators}`} />
@@ -24,6 +26,12 @@ export function Insights({
         <Stat label="Web finds" value={String(stats.webFinds)} />
         <Stat label="Flags" value={String(stats.flags)} />
       </dl>
+      <p className="text-sm text-[var(--muted)]">
+        EU-27 + UK: {compactNumber(EU_CAMPAIGN_BENCHMARKS.brandRelevantCreators)} brand-relevant
+        creators. Highest-yield tech/gaming pools: {EU_CAMPAIGN_BENCHMARKS.topMarkets.join(", ")}.
+        Modeled CTR: {(GAMING_CTR * 100).toFixed(2)}% gaming, {(TECH_CTR * 100).toFixed(2)}% tech
+        (Zorka / Hubfluence). Public samples join on week × SKU × region (DACH / Nordics / UK).
+      </p>
 
       <div className="grid gap-8 sm:grid-cols-2">
         <ChartCard title="Discovery pipeline">
@@ -64,6 +72,7 @@ export function Insights({
 
 export function CreatorStats({ item }: { item: ShortlistItem }) {
   const series = postSeries(item);
+  const campaign = computeCampaign(item);
   return (
     <div className="flex max-w-xl flex-col gap-4">
       <BarList
@@ -73,9 +82,11 @@ export function CreatorStats({ item }: { item: ShortlistItem }) {
           { label: "Engagement", value: item.fit.engagementQuality },
           { label: "Activity", value: item.fit.activity },
           { label: "Safety", value: item.fit.brandSafety },
+          { label: "Hardware", value: campaign.hardwareFit },
         ]}
         max={100}
       />
+      <CampaignCard campaign={campaign} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <p>
           {compactNumber(item.followerCount)} followers
@@ -111,6 +122,49 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col gap-1">
       <dt className="text-sm text-[var(--muted)]">{label}</dt>
       <dd className="text-2xl font-semibold tracking-tight">{value}</dd>
+    </div>
+  );
+}
+
+function CampaignCard({ campaign }: { campaign: ReturnType<typeof computeCampaign> }) {
+  const spec = [campaign.gpu, campaign.cpu, campaign.memory, campaign.storage].filter(Boolean).join(" · ");
+  return (
+    <div className="flex flex-col gap-2">
+      {spec ? <p>Public setup · {campaign.bracket}: {spec}</p> : null}
+      {campaign.otherPlatforms.length > 1 ? <p>Also on {campaign.otherPlatforms.join(", ")}</p> : null}
+      {campaign.partnerships.length ? <p>Live partners: {campaign.partnerships.join(", ")}</p> : null}
+      <p>{campaign.pitchAngle}</p>
+      {campaign.expectedClicks != null && campaign.ctr != null ? (
+        <p>
+          Expected clicks {compactNumber(campaign.expectedClicks)} at {(campaign.ctr * 100).toFixed(2)}%
+          CTR
+        </p>
+      ) : null}
+      {campaign.predictedSales != null ? (
+        <p>
+          Predicted sales {campaign.predictedSales} units via {campaign.salesDriver} (modeled, not
+          actual)
+        </p>
+      ) : null}
+      {campaign.sentiment ? <p>Comment sentiment · {campaign.sentiment}</p> : null}
+      {campaign.gpuDemandLift != null ? (
+        <p>GPU demand lift {campaign.gpuDemandLift.toFixed(1)}× in campaign windows</p>
+      ) : null}
+      {campaign.alignedSku && campaign.alignedRegion ? (
+        <p>
+          Aligned {campaign.alignedRegion} · {campaign.alignedSku}
+          {campaign.alignedWeek ? ` · ${campaign.alignedWeek}` : ""}
+          {campaign.temporalAnchor ? " · week match" : ""}
+        </p>
+      ) : null}
+      {campaign.interactionVolume != null ? (
+        <p>
+          {compactNumber(campaign.interactionVolume)} sample interactions
+          {campaign.volumeOk ? "" : " · below 10k floor"}
+          {campaign.gameNoiseFiltered ? ` · ${campaign.gameNoiseFiltered} game-only comments dropped` : ""}
+          {campaign.viralOutlier ? " · viral outlier held out" : ""}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { EXTRA_NICHES, FEATURED_NICHES, nicheById } from "@/src/domain/niches";
 import type { FollowerBand, OutreachStatus, Shortlist, ShortlistItem } from "@/src/domain/types";
 import { shortlistToCsv } from "@/src/outreach/csv";
 import { CreatorStats, Insights, Sparkline } from "@/src/ui/charts";
+import { DemoGuide } from "@/src/ui/DemoGuide";
+import { DEMO_STEPS, shouldAutoStartDemo } from "@/src/ui/demo";
 import { isEmail, languageLabel, marketLabel, whyOneLiner } from "@/src/ui/labels";
 import { postSeries } from "@/src/ui/stats";
 
@@ -44,7 +46,10 @@ export default function HomePage() {
   const [openDetails, setOpenDetails] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
+  const [demoPlaying, setDemoPlaying] = useState(false);
+  const [demoIndex, setDemoIndex] = useState(0);
   const autoRan = useRef(false);
+  const demoRun = useRef(0);
 
   useEffect(() => {
     const raw = localStorage.getItem("prenew-company");
@@ -70,7 +75,7 @@ export default function HomePage() {
     );
   }, [brief.companyName, brief.companyDescription]);
 
-  async function runSearch(next: Brief) {
+  async function runSearch(next: Brief): Promise<Shortlist | null> {
     setBrief(next);
     setLoading(true);
     setError(null);
@@ -84,12 +89,15 @@ export default function HomePage() {
       if (!response.ok) {
         setShortlist(null);
         setError("error" in body ? body.error : "Discovery failed");
-        return;
+        return null;
       }
-      setShortlist(body as Shortlist);
+      const list = body as Shortlist;
+      setShortlist(list);
+      return list;
     } catch {
       setShortlist(null);
       setError("Could not reach the discovery API");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -109,8 +117,42 @@ export default function HomePage() {
       return;
     }
     autoRan.current = true;
+    if (typeof window !== "undefined" && shouldAutoStartDemo(window.location.search)) {
+      void playDemo(0);
+      return;
+    }
     void runSearch(DEFAULTS);
   }, []);
+
+  function sameBrief(next: Brief): boolean {
+    return (
+      brief.market === next.market &&
+      brief.language === next.language &&
+      brief.keywords === next.keywords &&
+      brief.followerBand === next.followerBand &&
+      brief.niche === next.niche
+    );
+  }
+
+  async function playDemo(index: number) {
+    const step = DEMO_STEPS[index];
+    const run = ++demoRun.current;
+    setDemoPlaying(true);
+    setDemoIndex(index);
+    const list = sameBrief(step.brief) && shortlist ? shortlist : await runSearch(step.brief);
+    if (run !== demoRun.current) {
+      return;
+    }
+    setOpenDetails(step.openId ? { [step.openId]: true } : {});
+    if (list && step.target !== "demo-guide") {
+      window.setTimeout(() => {
+        if (run !== demoRun.current) {
+          return;
+        }
+        document.getElementById(step.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
+  }
 
   const visible = useMemo(() => {
     if (!shortlist) {
@@ -143,15 +185,39 @@ export default function HomePage() {
     URL.revokeObjectURL(url);
   }
 
+  const demoControls = (
+    <DemoGuide
+      stepIndex={demoIndex}
+      playing={demoPlaying}
+      busy={loading}
+      onPlay={() => void playDemo(0)}
+      onNext={() => void playDemo(demoIndex >= DEMO_STEPS.length - 1 ? 0 : demoIndex + 1)}
+      onBack={() => void playDemo(Math.max(0, demoIndex - 1))}
+      onExit={() => {
+        setDemoPlaying(false);
+        setOpenDetails({});
+      }}
+    />
+  );
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-12 px-6 py-16">
+      {demoPlaying ? (
+        <div
+          id="demo-guide"
+          className="sticky top-0 z-30 -mx-6 border-b border-[var(--line)] bg-[var(--bg)] px-6 py-4"
+        >
+          {demoControls}
+        </div>
+      ) : null}
       <header className="flex flex-col gap-3">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--accent)]">Reach</p>
         <h1 className="text-3xl font-semibold tracking-tight">Small gaming creators, ranked and ready to email.</h1>
         <p className="max-w-xl text-[var(--muted)]">Pick who you need, then where. No keyword soup.</p>
+        {demoPlaying ? null : <div id="demo-guide">{demoControls}</div>}
       </header>
 
-      <section className="flex flex-col gap-6">
+      <section id="demo-brief" className="flex flex-col gap-6 scroll-mt-40">
         <div className="flex flex-col gap-3">
           <p className="text-sm text-[var(--muted)]">I need creators who…</p>
           <div className="flex flex-wrap gap-2">
@@ -224,7 +290,7 @@ export default function HomePage() {
       {shortlist && shortlist.items.length > 0 ? (
         <section className="flex flex-col gap-10">
           <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-medium">
+            <h2 id="demo-results" className="scroll-mt-40 text-xl font-medium">
               {gemCount > 0
                 ? `${gemCount === 1 ? "1 hidden gem" : `${gemCount} hidden gems`}`
                 : `${visible.length} creator${visible.length === 1 ? "" : "s"}`}
@@ -259,7 +325,7 @@ export default function HomePage() {
                 <li
                   key={item.id}
                   id={`creator-${item.id}`}
-                  className="flex flex-col gap-4 border-t border-[var(--line)] pt-8"
+                  className="flex scroll-mt-40 flex-col gap-4 border-t border-[var(--line)] pt-8"
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     <a href={item.profileUrl} className="text-xl font-semibold underline-offset-4 hover:underline">
@@ -275,7 +341,7 @@ export default function HomePage() {
                   <p className="text-[var(--muted)]">
                     {item.fit.hiddenGem ? "Hidden gem · " : ""}
                     {item.platform} · {marketLabel(item.market)}
-                    {item.foundVia?.includes("web") ? " · web" : ""}
+                    {item.foundVia?.includes("web") ? ` · ${item.foundOn ?? webSourceLabel(item.contentSummary)}` : ""}
                   </p>
                   <p>{whyOneLiner(item)}</p>
                   <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">{pitch}</p>
@@ -353,6 +419,11 @@ function Chip({
       {label}
     </button>
   );
+}
+
+function webSourceLabel(summary: string): string {
+  const match = summary.match(/^Found on ([^:]+):/);
+  return match?.[1] ?? "web";
 }
 
 function compareItems(a: ShortlistItem, b: ShortlistItem): number {

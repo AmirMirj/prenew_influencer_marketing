@@ -1,5 +1,7 @@
 import { PRENEW_BRAND } from "./brand";
+import { computeCampaign } from "./campaign";
 import { applyFitModifiers, isHiddenGem, isPassiveMega, recencyMultiplier } from "./engagement";
+import { forecastReason } from "./forecast";
 import { compute } from "./metrics";
 import type { Candidate, DiscoverQuery, FitScore } from "./types";
 
@@ -42,6 +44,9 @@ export function haystackOf(candidate: Candidate): string {
     ...(candidate.recentTopics ?? []),
     ...(candidate.games ?? []),
     ...(candidate.recentPosts ?? []).map((post) => post.text ?? ""),
+    candidate.hardware?.gpu ?? "",
+    candidate.hardware?.cpu ?? "",
+    ...(candidate.partnerships ?? []),
   ]
     .join(" ")
     .toLowerCase();
@@ -57,19 +62,25 @@ export function scoreFit(candidate: Candidate, query: DiscoverQuery): FitScore {
   );
   const activity = scored.activityScore ?? 30;
   const { brandSafety, redFlags, competitorSponsor } = scoreSafety(scored);
+  const campaign = computeCampaign(scored);
   const hiddenGem = isHiddenGem(scored.followerCount, engagementQuality, nicheFit);
   const relativeEngagement = scored.relativeEngagement ?? null;
   const passiveMega = isPassiveMega(scored.followerCount, relativeEngagement, engagementQuality);
-  const total = applyFitModifiers(
-    Math.round(
-      nicheFit * WEIGHTS.nicheFit +
-        marketFit * WEIGHTS.marketFit +
-        engagementQuality * WEIGHTS.engagementQuality +
-        activity * WEIGHTS.activity +
-        brandSafety * WEIGHTS.brandSafety,
-    ),
-    { hiddenGem, penalize: competitorSponsor || brandSafety < 50, passiveMega },
+  let total = Math.round(
+    nicheFit * WEIGHTS.nicheFit +
+      marketFit * WEIGHTS.marketFit +
+      engagementQuality * WEIGHTS.engagementQuality +
+      activity * WEIGHTS.activity +
+      brandSafety * WEIGHTS.brandSafety,
   );
+  if (campaign.bracket === "enthusiast") {
+    total -= 5;
+  }
+  total = applyFitModifiers(total, {
+    hiddenGem,
+    penalize: competitorSponsor || brandSafety < 50,
+    passiveMega,
+  });
 
   return {
     total,
@@ -85,11 +96,35 @@ export function scoreFit(candidate: Candidate, query: DiscoverQuery): FitScore {
       nicheFit,
       engagementQuality,
       relativeEngagement,
+      pitchAngle: campaign.pitchAngle,
+      hardwareFit: campaign.hardwareFit,
+      expectedClicks: campaign.expectedClicks,
+      ctr: campaign.ctr,
+      alignedWeek: campaign.alignedWeek,
+      alignedSku: campaign.alignedSku,
+      alignedRegion: campaign.alignedRegion,
+      temporalAnchor: campaign.temporalAnchor,
     }),
     hiddenGem,
     redFlags,
     competitorSponsor,
     relativeEngagement,
+    hardwareFit: campaign.hardwareFit,
+    pitchAngle: campaign.pitchAngle,
+    predictedSales: campaign.predictedSales,
+    salesDriver: campaign.salesDriver,
+    gpuDemandLift: campaign.gpuDemandLift,
+    sentiment: campaign.sentiment,
+    expectedClicks: campaign.expectedClicks,
+    ctr: campaign.ctr,
+    alignedWeek: campaign.alignedWeek,
+    alignedSku: campaign.alignedSku,
+    alignedRegion: campaign.alignedRegion,
+    temporalAnchor: campaign.temporalAnchor,
+    viralOutlier: campaign.viralOutlier,
+    volumeOk: campaign.volumeOk,
+    gameNoiseFiltered: campaign.gameNoiseFiltered,
+    interactionVolume: campaign.interactionVolume,
   };
 }
 
@@ -140,10 +175,26 @@ function scoreSafety(candidate: Candidate): {
 function buildReasons(
   candidate: Candidate,
   query: DiscoverQuery,
-  scores: Pick<FitScore, "marketFit" | "nicheFit" | "engagementQuality" | "relativeEngagement">,
+  scores: Pick<
+    FitScore,
+    | "marketFit"
+    | "nicheFit"
+    | "engagementQuality"
+    | "relativeEngagement"
+    | "hardwareFit"
+    | "pitchAngle"
+    | "expectedClicks"
+    | "ctr"
+    | "alignedWeek"
+    | "alignedSku"
+    | "alignedRegion"
+    | "temporalAnchor"
+  >,
 ): string[] {
   const reasons: string[] = [];
-  if (scores.nicheFit >= 40) {
+  if (scores.hardwareFit < 40 && scores.pitchAngle) {
+    reasons.push(scores.pitchAngle);
+  } else if (scores.nicheFit >= 40) {
     const niche = candidate.nicheTags[0] ?? "gaming";
     reasons.push(`Creates ${niche} content that matches Prenew’s refurbished-PC audience`);
   }
@@ -161,5 +212,9 @@ function buildReasons(
   if (reasons.length === 0) {
     reasons.push("Limited overlap with the brief; ranked for completeness only");
   }
-  return reasons.slice(0, 3);
+  const modeled = forecastReason(scores);
+  if (modeled) {
+    reasons.push(modeled);
+  }
+  return reasons.slice(0, 4);
 }

@@ -29,6 +29,7 @@ function item(overrides: Partial<ShortlistItem> & Pick<ShortlistItem, "id" | "ha
       redFlags: [],
       competitorSponsor: false,
       relativeEngagement: 1.8,
+      hardwareFit: 88,
     },
     suggestedPitch: { local: "Hallo", en: "Hi", language: "de" },
     ...overrides,
@@ -64,6 +65,7 @@ describe("shortlist stats", () => {
             redFlags: [],
             competitorSponsor: false,
             relativeEngagement: 1.4,
+            hardwareFit: 70,
           },
         }),
         item({
@@ -90,6 +92,7 @@ describe("shortlist stats", () => {
             redFlags: ["competitor sponsor"],
             competitorSponsor: true,
             relativeEngagement: 0.7,
+            hardwareFit: 40,
           },
         }),
       ],

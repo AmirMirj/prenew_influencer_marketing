@@ -1,3 +1,4 @@
+import { createWebScoutAdapter } from "@/src/adapters/webscout";
 import { FIXTURE_CREATORS, WEB_SCOUT_CREATORS } from "@/src/fixtures/creators";
 import type { Candidate, Platform, SourceId } from "@/src/domain/types";
 import { filterCandidates } from "./filter";
@@ -14,12 +15,7 @@ export function createStubAdapter(platform: Platform): PlatformAdapter {
 }
 
 export function createWebScoutStub(): PlatformAdapter {
-  return {
-    platform: "web",
-    async search(query) {
-      return filterCandidates(WEB_SCOUT_CREATORS, query);
-    },
-  };
+  return createWebScoutAdapter({ live: false });
 }
 
 export const youtubeStub = createStubAdapter("youtube");

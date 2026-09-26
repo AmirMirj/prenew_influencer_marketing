@@ -1,5 +1,6 @@
+import { createWebScoutAdapter } from "@/src/adapters/webscout";
 import { createYouTubeAdapter } from "@/src/adapters/youtube";
-import { STUB_ADAPTERS, instagramStub, tiktokStub, webScoutStub, youtubeStub } from "@/src/adapters/stub";
+import { STUB_ADAPTERS, instagramStub, tiktokStub, youtubeStub } from "@/src/adapters/stub";
 import type { PlatformAdapter } from "@/src/adapters/types";
 import { planWithOptionalLlm } from "@/src/llm/client";
 import { compute, isInactive } from "@/src/domain/metrics";
@@ -28,6 +29,9 @@ export async function discover(
       continue;
     }
     existing.foundVia = [...new Set([...(existing.foundVia ?? []), ...(candidate.foundVia ?? [])])];
+    if (candidate.foundOn) {
+      existing.foundOn = candidate.foundOn;
+    }
   }
 
   const sourced = [...merged.values()].map((candidate) => compute(candidate));
@@ -65,7 +69,7 @@ export function defaultAdapters(): PlatformAdapter[] {
     ? createYouTubeAdapter({ apiKey: process.env.YOUTUBE_API_KEY })
     : youtubeStub;
 
-  return [youtube, tiktokStub, instagramStub, webScoutStub];
+  return [youtube, tiktokStub, instagramStub, createWebScoutAdapter()];
 }
 
 export { STUB_ADAPTERS };

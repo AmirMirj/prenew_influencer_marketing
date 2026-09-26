@@ -7,6 +7,7 @@ describe("discover", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_BASE_URL;
     delete process.env.YOUTUBE_API_KEY;
+    delete process.env.WEB_SCOUT_LIVE;
   });
 
   it("discover merges all platforms and ranks by fit", async () => {
@@ -68,6 +69,10 @@ describe("discover", () => {
     );
     expect(gpu.query.niche).toBe("gpu-reviews");
     expect(gpu.items.some((item) => item.handle === "rigdoctor")).toBe(true);
+    const dez = gpu.items.find((item) => item.handle === "dezgamez");
+    expect(dez).toBeDefined();
+    expect(dez?.contact.status).toBe("missing");
+    expect(dez?.fit.hardwareFit).toBeLessThan(40);
 
     const pretty = await discover(
       {
@@ -92,5 +97,23 @@ describe("discover", () => {
       STUB_ADAPTERS,
     );
     expect(studentFi.items.some((item) => item.handle === "pelikonefi")).toBe(true);
+  });
+
+  it("web scout merges forum finds onto the same creator id", async () => {
+    const de = await discover(
+      { market: "DE", language: "de", keywords: "budget gaming PC" },
+      STUB_ADAPTERS,
+    );
+    const ben = de.items.find((item) => item.handle === "buildmitben");
+    expect(ben?.foundVia).toEqual(expect.arrayContaining(["search", "web"]));
+    expect(ben?.foundOn).toMatch(/computerbase/i);
+
+    const fi = await discover(
+      { market: "FI", language: "fi", keywords: "budget gaming PC" },
+      STUB_ADAPTERS,
+    );
+    const kone = fi.items.find((item) => item.handle === "konekaveri");
+    expect(kone?.foundVia).toEqual(["web"]);
+    expect(kone?.foundOn).toMatch(/murobbs/i);
   });
 });
