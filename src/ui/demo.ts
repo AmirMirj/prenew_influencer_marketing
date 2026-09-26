@@ -58,17 +58,17 @@ export const DEMO_STEPS: DemoStep[] = [
   {
     id: "ben",
     title: "Email this one",
-    body: "Build mit Ben: used 4060, positive warranty talk, engagement-driven modeled sales, GPU demand in a campaign window. First pitch.",
+    body: "Select Build mit Ben. The German pitch leads with gebraucht and Preis-Leistung, warranty vs new, and seeding only to a German address. Copy that template.",
     brief: DEMO_PRENEW,
-    target: "creator-youtube:buildmitben",
+    target: "demo-pitch",
     openId: "youtube:buildmitben",
   },
   {
     id: "dez",
     title: "Same market, weaker ask",
-    body: "DezGamez is in the same GPU window, but comments run cold and the stream PC is flagship-new. Pitch value machines for the audience, or pass.",
+    body: "DezGamez stays in Germany but the stream PC is flagship-new. The pitch is for his viewers, not the broadcast rig — or pass.",
     brief: DEMO_GPU,
-    target: "creator-youtube:dezgamez",
+    target: "demo-pitch",
     openId: "youtube:dezgamez",
   },
 ];
@@ -80,6 +80,19 @@ export function demoStepAt(index: number): DemoStep {
 
 export function shouldAutoStartDemo(search: string): boolean {
   return /(?:^|[?&])demo(?:=1|&|$)/.test(search);
+}
+
+export function demoShouldSearch(current: DemoBrief | null, step: DemoStep): boolean {
+  if (!current) {
+    return true;
+  }
+  return (
+    current.market !== step.brief.market ||
+    current.language !== step.brief.language ||
+    current.keywords !== step.brief.keywords ||
+    current.followerBand !== step.brief.followerBand ||
+    current.niche !== step.brief.niche
+  );
 }
 
 export const HOW_IT_WORKS = [

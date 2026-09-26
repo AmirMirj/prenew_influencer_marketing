@@ -144,14 +144,19 @@ export default function HomePage() {
     if (run !== demoRun.current) {
       return;
     }
-    setOpenDetails(step.openId ? { [step.openId]: true } : {});
+    if (step.openId && list?.items.some((item) => item.id === step.openId)) {
+      setSelectedId(step.openId);
+      setOpenDetails({ [step.openId]: true });
+    } else {
+      setOpenDetails({});
+    }
     if (list && step.target !== "demo-guide") {
       window.setTimeout(() => {
         if (run !== demoRun.current) {
           return;
         }
         document.getElementById(step.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 80);
+      }, 120);
     }
   }
 
@@ -405,7 +410,7 @@ export default function HomePage() {
       {shortlist && shortlist.items.length > 0 && selected ? (
         <section className="flex flex-col gap-8">
           <div className="flex flex-col gap-2">
-            <h2 id="demo-results" className="scroll-mt-40 text-xl font-medium">
+            <h2 id="demo-results" className="scroll-mt-56 text-xl font-medium">
               {gemCount > 0
                 ? `${gemCount === 1 ? "1 hidden gem" : `${gemCount} hidden gems`}`
                 : `${visible.length} creator${visible.length === 1 ? "" : "s"}`}
@@ -455,7 +460,10 @@ export default function HomePage() {
               })}
             </ul>
 
-            <article className="flex flex-col gap-4 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5">
+            <article
+              id="demo-pitch"
+              className="flex scroll-mt-56 flex-col gap-4 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5"
+            >
               <div>
                 <p className="font-medium">{selected.displayName}</p>
                 <p className="text-sm text-[var(--muted)]">

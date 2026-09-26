@@ -15,7 +15,7 @@ export function Insights({
 }) {
   const stats = computeShortlistStats({ ...shortlist, items });
   return (
-    <div id="demo-insights" className="flex scroll-mt-40 flex-col gap-8">
+    <div id="demo-insights" className="flex scroll-mt-56 flex-col gap-8">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
         <Stat label="Hidden gems" value={String(stats.gems)} />
         <Stat label="With email" value={`${stats.emails}/${stats.creators}`} />
