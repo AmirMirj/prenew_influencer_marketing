@@ -93,9 +93,6 @@ function scoreEngagementQuality(candidate: Candidate): number {
 function scoreBrandFit(candidate: Candidate): number {
   const haystack = haystackOf(candidate);
   const hits = PRENEW_BRAND.relevantTokens.filter((token) => haystack.includes(token));
-  if (PRENEW_BRAND.relevantTokens.length === 0) {
-    return 0;
-  }
   return Math.min(100, Math.round((hits.length / 6) * 100));
 }
 
