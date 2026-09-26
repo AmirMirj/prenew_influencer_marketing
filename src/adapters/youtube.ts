@@ -1,5 +1,5 @@
 import { tokenize } from "@/src/domain/scoring";
-import type { Candidate, DiscoverQuery } from "@/src/domain/types";
+import type { Candidate, DiscoverQuery, RecentPost } from "@/src/domain/types";
 import { matchesFollowerBand } from "@/src/domain/validate";
 import type { PlatformAdapter } from "./types";
 
@@ -8,12 +8,13 @@ const YOUTUBE_API_HOST = "https://www.googleapis.com/youtube/v3";
 export type FetchLike = typeof fetch;
 
 type YouTubeSearchItem = {
-  id?: { channelId?: string };
+  id?: { channelId?: string; videoId?: string };
   snippet?: {
     channelId?: string;
     title?: string;
     description?: string;
     customUrl?: string;
+    publishedAt?: string;
   };
 };
 
@@ -31,6 +32,13 @@ type YouTubeChannelItem = {
     viewCount?: string;
     hiddenSubscriberCount?: boolean;
   };
+};
+
+type YouTubeVideoItem = {
+  id?: string;
+  snippet?: { publishedAt?: string; title?: string; description?: string };
+  statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
+  contentDetails?: { duration?: string };
 };
 
 type YouTubeListResponse<T> = {
@@ -72,15 +80,74 @@ export function createYouTubeAdapter(options: {
 
       const channelsResponse = await fetchFn(channelsUrl.toString());
       const channelsBody = (await channelsResponse.json()) as YouTubeListResponse<YouTubeChannelItem>;
+      const postsByChannel = await loadRecentPosts(fetchFn, options.apiKey, channelIds);
 
       return (channelsBody.items ?? [])
-        .map((item) => mapChannel(item, query))
+        .map((item) => mapChannel(item, query, postsByChannel.get(item.id ?? "") ?? []))
         .filter((candidate) => matchesFollowerBand(candidate.followerCount, query.followerBand));
     },
   };
 }
 
-function mapChannel(item: YouTubeChannelItem, query: DiscoverQuery): Candidate {
+async function loadRecentPosts(
+  fetchFn: FetchLike,
+  apiKey: string,
+  channelIds: string[],
+): Promise<Map<string, RecentPost[]>> {
+  const posts = new Map<string, RecentPost[]>();
+  try {
+    for (const channelId of channelIds) {
+      const searchUrl = new URL(`${YOUTUBE_API_HOST}/search`);
+      searchUrl.searchParams.set("part", "snippet");
+      searchUrl.searchParams.set("type", "video");
+      searchUrl.searchParams.set("channelId", channelId);
+      searchUrl.searchParams.set("order", "date");
+      searchUrl.searchParams.set("maxResults", "8");
+      searchUrl.searchParams.set("key", apiKey);
+      const searchResponse = await fetchFn(searchUrl.toString());
+      const searchBody = (await searchResponse.json()) as YouTubeListResponse<YouTubeSearchItem>;
+      const videoIds = (searchBody.items ?? [])
+        .map((item) => item.id?.videoId)
+        .filter((id): id is string => Boolean(id));
+      if (videoIds.length === 0) {
+        continue;
+      }
+      const videosUrl = new URL(`${YOUTUBE_API_HOST}/videos`);
+      videosUrl.searchParams.set("part", "snippet,statistics,contentDetails");
+      videosUrl.searchParams.set("id", videoIds.join(","));
+      videosUrl.searchParams.set("key", apiKey);
+      const videosResponse = await fetchFn(videosUrl.toString());
+      const videosBody = (await videosResponse.json()) as YouTubeListResponse<YouTubeVideoItem>;
+      posts.set(
+        channelId,
+        (videosBody.items ?? []).map((item) => ({
+          date: item.snippet?.publishedAt ?? new Date().toISOString(),
+          views: Number(item.statistics?.viewCount ?? 0),
+          likes: Number(item.statistics?.likeCount ?? 0),
+          comments: Number(item.statistics?.commentCount ?? 0),
+          isShort: isShortDuration(item.contentDetails?.duration),
+          text: item.snippet?.title,
+        })),
+      );
+    }
+  } catch {
+    return posts;
+  }
+  return posts;
+}
+
+function isShortDuration(duration?: string): boolean {
+  if (!duration) {
+    return false;
+  }
+  const match = duration.match(/PT(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) {
+    return false;
+  }
+  return Number(match[1] ?? 0) * 60 + Number(match[2] ?? 0) <= 60;
+}
+
+function mapChannel(item: YouTubeChannelItem, query: DiscoverQuery, recentPosts: RecentPost[]): Candidate {
   const handle = (item.snippet?.customUrl ?? item.id ?? "unknown").replace(/^@/, "");
   const description = item.snippet?.description ?? "";
   const followerCount = Number(item.statistics?.subscriberCount ?? 0);
@@ -101,6 +168,9 @@ function mapChannel(item: YouTubeChannelItem, query: DiscoverQuery): Candidate {
     nicheTags: inferNicheTags(description, query.keywords),
     contentSummary: description.slice(0, 180) || `YouTube channel matching ${query.keywords}`,
     recentTopics: tokenize(description).slice(0, 5),
+    bio: description,
+    recentPosts: recentPosts.length ? recentPosts : undefined,
+    foundVia: ["search"],
     contact: {
       status: "found",
       value: `https://youtube.com/@${handle}`,

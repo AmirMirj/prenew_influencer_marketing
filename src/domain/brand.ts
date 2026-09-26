@@ -28,4 +28,6 @@ export const PRENEW_BRAND = {
     "gpu",
     "cpu",
   ],
+  competitors: ["mindfactory", "alternate", "caseking", "memoryx", "notebooksbilliger"],
+  safetyFlags: ["gambling", "crypto-pump", "casino", "giveaway-scam"],
 } as const;

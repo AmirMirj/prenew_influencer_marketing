@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { STUB_ADAPTERS } from "@/src/adapters/stub";
 import { discover } from "./discover";
 
 describe("discover", () => {
+  beforeEach(() => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.YOUTUBE_API_KEY;
+  });
+
   it("discover merges all platforms and ranks by fit", async () => {
     const shortlist = await discover(
       { market: "DE", language: "de", keywords: "budget gaming PC" },
@@ -19,7 +25,7 @@ describe("discover", () => {
 
     for (const item of shortlist.items) {
       expect(item.fit).toBeDefined();
-      expect(item.suggestedPitch.length).toBeGreaterThan(0);
+      expect(item.suggestedPitch.en.length).toBeGreaterThan(0);
     }
   });
 
@@ -37,5 +43,54 @@ describe("discover", () => {
     await expect(discover({ market: "DE", language: "de" }, STUB_ADAPTERS)).rejects.toThrow(
       /keywords is required/,
     );
+  });
+
+  it("Inactive creators (no post in 120 days) are dropped when lastPostAt is known", async () => {
+    const shortlist = await discover(
+      { market: "DE", language: "de", keywords: "budget gaming PC" },
+      STUB_ADAPTERS,
+    );
+
+    expect(shortlist.items.some((item) => item.handle === "oldbuildde")).toBe(false);
+    expect(shortlist.steps.sourced).toBeGreaterThan(shortlist.steps.filtered);
+  });
+
+  it("GPU reviews keep mid-size creators and extra niches still return someone", async () => {
+    const gpu = await discover(
+      {
+        market: "DE",
+        language: "de",
+        keywords: "hardware review GPU",
+        followerBand: "any",
+        niche: "gpu-reviews",
+      },
+      STUB_ADAPTERS,
+    );
+    expect(gpu.query.niche).toBe("gpu-reviews");
+    expect(gpu.items.some((item) => item.handle === "rigdoctor")).toBe(true);
+
+    const pretty = await discover(
+      {
+        market: "DE",
+        language: "de",
+        keywords: "cable management aesthetic",
+        followerBand: "micro",
+        niche: "aesthetic-builds",
+      },
+      STUB_ADAPTERS,
+    );
+    expect(pretty.items.some((item) => item.handle === "buildmitben")).toBe(true);
+
+    const studentFi = await discover(
+      {
+        market: "FI",
+        language: "fi",
+        keywords: "student first PC",
+        followerBand: "micro",
+        niche: "first-pc",
+      },
+      STUB_ADAPTERS,
+    );
+    expect(studentFi.items.some((item) => item.handle === "pelikonefi")).toBe(true);
   });
 });

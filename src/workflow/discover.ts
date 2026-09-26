@@ -1,31 +1,44 @@
 import { createYouTubeAdapter } from "@/src/adapters/youtube";
-import { STUB_ADAPTERS } from "@/src/adapters/stub";
+import { STUB_ADAPTERS, instagramStub, tiktokStub, webScoutStub, youtubeStub } from "@/src/adapters/stub";
 import type { PlatformAdapter } from "@/src/adapters/types";
+import { planWithOptionalLlm } from "@/src/llm/client";
+import { compute, isInactive } from "@/src/domain/metrics";
 import { scoreFit } from "@/src/domain/scoring";
 import type { Candidate, DiscoverQuery, Shortlist, ShortlistItem } from "@/src/domain/types";
 import { normalizeQuery } from "@/src/domain/validate";
-import { preserveContact, suggestPitch } from "@/src/outreach/pitch";
+import { resolveContact, suggestPitch } from "@/src/outreach/pitch";
 
 export async function discover(
   input: unknown,
   adapters: PlatformAdapter[] = defaultAdapters(),
 ): Promise<Shortlist> {
   const query: DiscoverQuery = normalizeQuery(input);
-  const batches = await Promise.all(adapters.map((adapter) => adapter.search(query)));
+  const plan = await planWithOptionalLlm(query);
+  const searchQuery = { ...query, keywords: plan.terms.join(" ") };
+  const batches = await Promise.all(adapters.map((adapter) => adapter.search(searchQuery)));
   const merged = new Map<string, Candidate>();
 
   for (const candidate of batches.flat()) {
-    if (!merged.has(candidate.id)) {
-      merged.set(candidate.id, candidate);
+    const existing = merged.get(candidate.id);
+    if (!existing) {
+      merged.set(candidate.id, {
+        ...candidate,
+        foundVia: candidate.foundVia ?? ["search"],
+      });
+      continue;
     }
+    existing.foundVia = [...new Set([...(existing.foundVia ?? []), ...(candidate.foundVia ?? [])])];
   }
 
-  const items: ShortlistItem[] = [...merged.values()]
+  const sourced = [...merged.values()].map((candidate) => compute(candidate));
+  const active = sourced.filter((candidate) => !isInactive(candidate));
+
+  const items: ShortlistItem[] = active
     .map((candidate) => ({
       ...candidate,
-      contact: preserveContact(candidate),
+      contact: resolveContact(candidate),
       fit: scoreFit(candidate, query),
-      suggestedPitch: suggestPitch(candidate),
+      suggestedPitch: suggestPitch(candidate, query),
     }))
     .sort((a, b) => {
       if (b.fit.total !== a.fit.total) {
@@ -34,13 +47,25 @@ export async function discover(
       return b.engagementRate - a.engagementRate;
     });
 
-  return { query, items };
+  return {
+    query,
+    plan,
+    steps: {
+      planned: plan.terms.length,
+      sourced: sourced.length,
+      filtered: active.length,
+      scored: items.length,
+    },
+    items,
+  };
 }
 
 export function defaultAdapters(): PlatformAdapter[] {
   const youtube = process.env.YOUTUBE_API_KEY
     ? createYouTubeAdapter({ apiKey: process.env.YOUTUBE_API_KEY })
-    : STUB_ADAPTERS[0];
+    : youtubeStub;
 
-  return [youtube, STUB_ADAPTERS[1], STUB_ADAPTERS[2]];
+  return [youtube, tiktokStub, instagramStub, webScoutStub];
 }
+
+export { STUB_ADAPTERS };

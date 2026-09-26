@@ -4,6 +4,7 @@ import { POST } from "./route";
 describe("POST /api/discover", () => {
   beforeEach(() => {
     delete process.env.YOUTUBE_API_KEY;
+    delete process.env.OPENAI_API_KEY;
   });
 
   it("POST /api/discover returns a ranked shortlist", async () => {

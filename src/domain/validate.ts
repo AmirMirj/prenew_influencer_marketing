@@ -30,7 +30,19 @@ export function normalizeQuery(input: unknown): DiscoverQuery {
     followerBand = body.followerBand as FollowerBand;
   }
 
-  return { market, language, keywords, followerBand };
+  const companyName = readOptionalString(body, "companyName");
+  const companyDescription = readOptionalString(body, "companyDescription");
+  const niche = readOptionalString(body, "niche");
+
+  return { market, language, keywords, followerBand, companyName, companyDescription, niche };
+}
+
+function readOptionalString(body: Record<string, unknown>, field: string): string | undefined {
+  const value = body[field];
+  if (typeof value !== "string" || value.trim() === "") {
+    return undefined;
+  }
+  return value.trim();
 }
 
 function readRequiredString(body: Record<string, unknown>, field: string): string {

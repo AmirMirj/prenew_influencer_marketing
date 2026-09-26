@@ -5,163 +5,126 @@
 - Next.js App Router + TypeScript
 - Vitest for unit, contract, workflow, and API tests
 - No live network in default `npm test`
+- Optional `OPENAI_API_KEY` / `OPENAI_BASE_URL` for planning, safety copy, and local pitch
+- Optional `YOUTUBE_API_KEY` for live YouTube (including recent videos)
 
 ## Layout
 
 ```
 src/
-  domain/          # types, scoring — no Next.js imports
-  adapters/        # PlatformAdapter + youtube / tiktok / instagram
-  workflow/        # discover(): source → score → rank → outreach
-  fixtures/        # deterministic stub creators
-  outreach/        # contact + suggested pitch
+  domain/          # types, metrics, scoring, planner
+  adapters/        # PlatformAdapter + youtube / tiktok / instagram / web
+  workflow/        # discover()
+  fixtures/
+  outreach/        # contact, bilingual pitch, csv
+  llm/             # optional OpenAI-compatible client
 app/
   page.tsx
   api/discover/route.ts
 ```
 
-## Domain types
+## Domain types (extensions)
 
 ```ts
-type Platform = "youtube" | "tiktok" | "instagram";
-type FollowerBand = "micro" | "mid" | "any";
-type ContactStatus = "found" | "missing";
+type SourceId = Platform | "web";
+type FoundVia = "search" | "web";
 
-type DiscoverQuery = {
-  market: string;       // e.g. "DE"
-  language: string;     // e.g. "de"
-  keywords: string;
-  followerBand?: FollowerBand;
+type RecentPost = {
+  date: string;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  isShort?: boolean;
+  text?: string;
 };
 
-type Candidate = {
-  id: string;
-  platform: Platform;
-  handle: string;
-  displayName: string;
-  profileUrl: string;
-  followerCount: number;
-  engagementRate: number; // 0–1, e.g. 0.045
+type SuggestedPitch = {
+  local: string;
+  en: string;
   language: string;
+};
+
+type QueryPlan = {
+  original: string;
+  expansions: string[];
+  terms: string[];
+};
+
+type DiscoverQuery = {
   market: string;
-  nicheTags: string[];
-  contentSummary: string;
-  recentTopics: string[];
-  contact: {
-    status: ContactStatus;
-    value?: string; // email, business handle, or profile URL
-  };
+  language: string;
+  keywords: string;
+  followerBand?: FollowerBand;
+  companyName?: string;
+  companyDescription?: string;
 };
 
 type FitScore = {
-  total: number;            // 0–100, weighted
-  audienceMatch: number;    // 0–100
-  engagementQuality: number;// 0–100
-  brandFit: number;         // 0–100
-  reasons: string[];        // 1–3 why-they-fit
-};
-
-type ShortlistItem = Candidate & {
-  fit: FitScore;
-  suggestedPitch: string;
-};
-
-type Shortlist = {
-  query: DiscoverQuery;
-  items: ShortlistItem[];   // ranked by fit.total desc
+  total: number;
+  audienceMatch: number; // alias of marketFit
+  marketFit: number;
+  nicheFit: number;
+  brandFit: number; // alias of nicheFit
+  engagementQuality: number;
+  activity: number;
+  brandSafety: number;
+  reasons: string[];
+  hiddenGem: boolean;
+  redFlags: string[];
+  competitorSponsor: boolean;
 };
 ```
 
-## Brand context constant
+`suggestedPitch` on a shortlist item is `SuggestedPitch`. Unknown activity fields are omitted; creators are not dropped for missing `lastPostAt`.
 
-Used by scoring and outreach. Not user-editable in MVP.
+## Scoring
 
-```
-brand: Prenew
-product: refurbished gaming PCs
-valueProp: same performance as new retail, roughly 20% cheaper, warranty included, less risk than P2P
-relevantNiches: gaming, pc build, hardware review, budget gaming, refurbished, second-hand tech
-```
+Follower count is not a positive ranking signal.
 
-## Scoring (`scoreFit`)
+Weights:
 
-Follower count is **not** a positive ranking signal. It is only used to apply the optional `followerBand` filter before scoring.
+- nicheFit 0.40
+- marketFit 0.20
+- engagementQuality (vs typical for platform + tier) 0.25
+- activity 0.10
+- brandSafety 0.05
 
-Weights (must sum to 1):
+Penalties: −15 if competitor sponsor or brandSafety < 50. Clamp total to 0–100.
 
-- audienceMatch 0.40 — language/market match + keyword/niche overlap with the query
-- engagementQuality 0.30 — engagement rate, with a bonus in the micro/mid band (higher engagement expected)
-- brandFit 0.30 — overlap with Prenew-relevant niches and topics (gaming, PC hardware, budget/value, refurbished)
+Hidden gem: followers < 50k AND engagementQuality >= 65 AND nicheFit >= 75.
 
-`total = round(audienceMatch * 0.40 + engagementQuality * 0.30 + brandFit * 0.30)`
+A1/A2 still hold: a German micro gaming creator outranks an English mega lifestyle account.
 
-Rules:
+## Metrics
 
-- A micro creator (1k–50k) with high engagement and strong niche fit must outrank a mega-account (1M+) with weak niche fit for the same query.
-- Language + market match must increase audienceMatch. A DE/de gaming creator scores higher for a DE/de query than an unrelated lifestyle creator in another language.
-- `reasons` must mention the concrete signals that drove the score (niche, language, engagement), not follower count.
+- Tiers: nano <10k, micro <50k, mid <250k, else macro
+- Engagement vs typical on a log scale (1× typical → 50)
+- Activity from `recentPosts` (recency + posts/month)
+- Views window 30 days (else 90); skip posts younger than 2 days; prefer long-form on YouTube
+- Email extractor ignores noreply / image filenames
+- Inactive filter: drop only when `daysSinceLastPost` is known and > 120
 
-## Platform adapters
+## Planner
 
-```ts
-interface PlatformAdapter {
-  readonly platform: Platform;
-  search(query: DiscoverQuery): Promise<Candidate[]>;
-}
-```
+Heuristic expansions for DE and FI (e.g. Preis-Leistung, gebraucht, pelikone, käytetty). Optional LLM replaces expansions when a key is set. Adapters receive the joined term list.
 
-- Every adapter (stub or live) implements this interface.
-- `search` must not throw on empty results; return `[]`.
-- Candidates must have a stable `id` of the form `${platform}:${handle}`.
-- Stub adapters filter fixtures by language/market/keywords/followerBand. They do not call the network.
-- The real YouTube adapter uses YouTube Data API v3 behind the same interface. Tests mock `fetch`. The API key lives in `YOUTUBE_API_KEY` / `.env.local` and is never committed.
+## Adapters
 
-## Workflow (`discover`)
+`PlatformAdapter.platform` is `SourceId`. Social stubs filter fixtures. `webScoutStub` uses `platform: "web"` and returns creators with a real social `candidate.platform` and `foundVia: ["web"]`.
 
-1. Validate query (non-empty market, language, keywords).
-2. Call all registered adapters in parallel.
-3. Merge candidates, de-dupe by `id`.
-4. Filter by `followerBand` if not `any`.
-5. Score each candidate with `scoreFit`.
-6. Attach `suggestedPitch`.
-7. Sort by `fit.total` descending, then by `engagementRate` descending.
-8. Return `{ query, items }`.
+Live YouTube may call `videos`/`search` for recent uploads. If that fails, return the channel without posts (do not mark inactive).
 
 ## Outreach
 
-- If `contact.status === "missing"`, keep it explicit. Do not invent an email.
-- If found, `contact.value` is whatever the adapter supplied (email, business handle, or profile URL).
-- `suggestedPitch` must:
-  - mention Prenew
-  - mention refurbished / value / warranty (the value prop)
-  - mention the creator’s niche or display name
-  - stay under 400 characters
+- Never invent an email
+- Pitch `en` always; `local` uses `de` or `fi` templates, otherwise English
+- Each pitch string ≤ 400 chars and mentions Prenew + value prop + creator
+- CSV columns: handle, platform, market, followers, fit, hiddenGem, contact, pitch en
 
-## API
+## API / UI
 
-`POST /api/discover`
+`POST /api/discover` → `{ query, plan, steps, items }`.
 
-Request JSON: `DiscoverQuery`
+UI: Prenew company strip (localStorage), suggested searches, query plan, sort/filter, gem badge, pitch toggle, statuses, CSV download.
 
-Success: `200` + `Shortlist`
-
-Validation error: `400` + `{ error: string }`
-
-## UI
-
-Single page:
-
-- Form: market, language, keywords, follower band
-- Submit calls `POST /api/discover`
-- Results table/cards: platform, name/handle, followers, engagement, fit total + reasons, contact, suggested pitch
-- Empty state when no matches
-- Error state on 400 / network failure
-
-Default form values for the demo: market `DE`, language `de`, keywords `budget gaming PC`, follower band `micro`.
-
-## Test policy
-
-- Spec acceptance titles map 1:1 to test names (see `specs/acceptance.md`).
-- No live network in `npm test`.
-- YouTube live adapter tests mock `fetch`.
-- Domain and workflow tests must not import Next.js.
+Default brief: DE / de / budget gaming PC / micro.

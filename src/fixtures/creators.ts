@@ -1,4 +1,20 @@
-import type { Candidate } from "@/src/domain/types";
+import type { Candidate, RecentPost } from "@/src/domain/types";
+
+function daysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
+function posts(rows: Array<[number, number, number, number, boolean?]>): RecentPost[] {
+  return rows.map(([age, views, likes, comments, isShort]) => ({
+    date: daysAgo(age),
+    views,
+    likes,
+    comments,
+    shares: Math.round(comments * 0.35),
+    saves: Math.round(comments * 0.25),
+    isShort,
+  }));
+}
 
 export const FIXTURE_CREATORS: Candidate[] = [
   {
@@ -13,8 +29,26 @@ export const FIXTURE_CREATORS: Candidate[] = [
     market: "DE",
     nicheTags: ["gaming", "pc build", "budget gaming"],
     contentSummary: "German budget gaming PC builds and used-hardware advice",
-    recentTopics: ["RTX 4060 build", "refurbished GPU", "office-to-gaming PC"],
+    recentTopics: [
+      "RTX 4060 build",
+      "refurbished GPU",
+      "cable management aesthetic",
+      "student first PC",
+      "upgrade GPU",
+      "stream PC setup",
+      "fps setup valorant",
+    ],
     contact: { status: "found", value: "hello@buildmitben.de" },
+    games: ["Cyberpunk 2077", "Valorant"],
+    bio: "Collabs: hello@buildmitben.de · https://discord.gg/buildmitben",
+    foundVia: ["search"],
+    recentPosts: posts([
+      [5, 12_000, 720, 90],
+      [12, 11_000, 660, 80],
+      [20, 10_500, 630, 70],
+      [40, 8_000, 400, 40],
+      [70, 7_500, 360, 35],
+    ]),
   },
   {
     id: "youtube:megavibes",
@@ -30,6 +64,11 @@ export const FIXTURE_CREATORS: Candidate[] = [
     contentSummary: "Daily lifestyle vlogs and travel diaries",
     recentTopics: ["airport outfit", "morning routine"],
     contact: { status: "found", value: "https://youtube.com/@megavibes" },
+    foundVia: ["search"],
+    recentPosts: posts([
+      [3, 400_000, 3_000, 200],
+      [10, 380_000, 2_800, 180],
+    ]),
   },
   {
     id: "youtube:rigdoctor",
@@ -43,8 +82,15 @@ export const FIXTURE_CREATORS: Candidate[] = [
     market: "DE",
     nicheTags: ["hardware review", "gaming"],
     contentSummary: "Mid-size German hardware reviews and value GPU tests",
-    recentTopics: ["used 4070", "Preis-Leistung PC"],
+    recentTopics: ["used 4070", "Preis-Leistung PC", "hardware review GPU"],
     contact: { status: "missing" },
+    games: ["Baldur's Gate 3"],
+    foundVia: ["search"],
+    recentPosts: posts([
+      [8, 22_000, 700, 90],
+      [18, 20_000, 640, 80],
+      [55, 18_000, 500, 60],
+    ]),
   },
   {
     id: "youtube:pelikonefi",
@@ -58,8 +104,61 @@ export const FIXTURE_CREATORS: Candidate[] = [
     market: "FI",
     nicheTags: ["gaming", "budget gaming"],
     contentSummary: "Finnish budget gaming PC setups",
-    recentTopics: ["käytetty näytönohjain", "pelikone 700e"],
+    recentTopics: [
+      "käytetty näytönohjain",
+      "pelikone 700e",
+      "local gaming community",
+      "opiskelija",
+      "student first PC",
+      "fps setup valorant",
+    ],
     contact: { status: "found", value: "https://youtube.com/@pelikonefi" },
+    games: ["CS2"],
+    bio: "yhteistyo@pelikone.fi",
+    foundVia: ["search"],
+    recentPosts: posts([
+      [4, 6_000, 420, 50],
+      [14, 5_500, 380, 40],
+      [28, 5_000, 350, 35],
+    ]),
+  },
+  {
+    id: "youtube:oldbuildde",
+    platform: "youtube",
+    handle: "oldbuildde",
+    displayName: "Old Build DE",
+    profileUrl: "https://youtube.com/@oldbuildde",
+    followerCount: 15_000,
+    engagementRate: 0.05,
+    language: "de",
+    market: "DE",
+    nicheTags: ["gaming", "pc build"],
+    contentSummary: "German budget gaming PC channel that went quiet",
+    recentTopics: ["gaming PC"],
+    contact: { status: "missing" },
+    foundVia: ["search"],
+    recentPosts: posts([[200, 9_000, 400, 40]]),
+  },
+  {
+    id: "youtube:mindfactoryfan",
+    platform: "youtube",
+    handle: "mindfactoryfan",
+    displayName: "Mindfactory Fan",
+    profileUrl: "https://youtube.com/@mindfactoryfan",
+    followerCount: 14_000,
+    engagementRate: 0.055,
+    language: "de",
+    market: "DE",
+    nicheTags: ["gaming", "pc build"],
+    contentSummary: "German gaming PC builds sponsored by Mindfactory",
+    recentTopics: ["Mindfactory GPU haul", "budget gaming PC"],
+    bio: "Thanks Mindfactory for the card",
+    contact: { status: "found", value: "hi@mindfactoryfan.de" },
+    foundVia: ["search"],
+    recentPosts: posts([
+      [6, 10_000, 500, 40],
+      [16, 9_500, 470, 35],
+    ]),
   },
   {
     id: "tiktok:pixelpreis",
@@ -73,8 +172,21 @@ export const FIXTURE_CREATORS: Candidate[] = [
     market: "DE",
     nicheTags: ["budget gaming", "gaming"],
     contentSummary: "Short German clips comparing cheap vs new gaming PCs",
-    recentTopics: ["refurbished vs new", "4060 under 700"],
+    recentTopics: [
+      "refurbished vs new",
+      "4060 under 700",
+      "value gaming cheap",
+      "living room family gaming",
+      "Wohnzimmer",
+    ],
     contact: { status: "found", value: "@pixelpreis" },
+    games: ["Fortnite"],
+    foundVia: ["search"],
+    recentPosts: posts([
+      [2, 40_000, 3_200, 180],
+      [9, 36_000, 2_900, 150],
+      [21, 30_000, 2_200, 120],
+    ]),
   },
   {
     id: "tiktok:cafefriday",
@@ -90,6 +202,7 @@ export const FIXTURE_CREATORS: Candidate[] = [
     contentSummary: "Paris café tours and weekend outfits",
     recentTopics: ["croissant", "thrift coat"],
     contact: { status: "missing" },
+    foundVia: ["search"],
   },
   {
     id: "instagram:gebrauchtgpu",
@@ -103,8 +216,14 @@ export const FIXTURE_CREATORS: Candidate[] = [
     market: "DE",
     nicheTags: ["refurbished", "second-hand tech", "hardware review"],
     contentSummary: "Second-hand GPU and refurbished PC photo reviews",
-    recentTopics: ["eBay Kleinanzeigen GPU", "warranty vs P2P"],
+    recentTopics: ["eBay Kleinanzeigen GPU", "warranty vs P2P", "hardware review GPU", "repair"],
     contact: { status: "found", value: "collab@gebrauchtgpu.de" },
+    bio: "collab@gebrauchtgpu.de",
+    foundVia: ["search"],
+    recentPosts: posts([
+      [7, 0, 900, 40],
+      [15, 0, 820, 30],
+    ]),
   },
   {
     id: "instagram:sundayglow",
@@ -120,5 +239,32 @@ export const FIXTURE_CREATORS: Candidate[] = [
     contentSummary: "Beauty and wellness lifestyle photography",
     recentTopics: ["skincare haul", "sunday reset"],
     contact: { status: "found", value: "press@sundayglow.com" },
+    foundVia: ["search"],
+  },
+];
+
+export const WEB_SCOUT_CREATORS: Candidate[] = [
+  {
+    id: "youtube:konekaveri",
+    platform: "youtube",
+    handle: "konekaveri",
+    displayName: "Konekaveri",
+    profileUrl: "https://youtube.com/@konekaveri",
+    followerCount: 6_400,
+    engagementRate: 0.09,
+    language: "fi",
+    market: "FI",
+    nicheTags: ["gaming", "budget gaming"],
+    contentSummary: "Found on a Finnish pelikone forum thread about kunnostettu PCs",
+    recentTopics: ["pelikone", "käytetty näytönohjain", "local gaming community"],
+    contact: { status: "found", value: "moro@konekaveri.fi" },
+    bio: "moro@konekaveri.fi · https://twitch.tv/konekaveri",
+    games: ["Dota 2"],
+    foundVia: ["web"],
+    recentPosts: posts([
+      [3, 4_800, 400, 55],
+      [11, 4_200, 360, 40],
+      [24, 3_900, 330, 35],
+    ]),
   },
 ];

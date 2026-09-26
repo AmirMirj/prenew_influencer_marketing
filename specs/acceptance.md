@@ -105,3 +105,65 @@ When the YouTube adapter searches
 Then candidates are mapped to the shared `Candidate` shape  
 And `fetch` is called with the YouTube API host  
 And no real network request is made
+
+## Metrics, gems, planner, safety, export
+
+### A13. Hidden gem: micro + high relative engagement + high niche
+
+Given a DE / de / "budget gaming PC" query  
+And a 12k German gaming creator with strong engagement  
+When they are scored  
+Then `fit.hiddenGem` is true  
+And a 2M lifestyle creator’s `fit.hiddenGem` is false
+
+### A14. Engagement vs typical: 5k / 8% outranks 200k / 1% on the engagement component
+
+Given two YouTube creators with the same niche and market  
+And one has 5k followers at 8% engagement  
+And one has 200k followers at 1% engagement  
+When both are scored  
+Then the smaller creator’s `engagementQuality` is higher
+
+### A15. Inactive creators (no post in 120 days) are dropped when lastPostAt is known
+
+Given a matching DE gaming creator whose last post is 200 days ago  
+When `discover` runs on the stub catalog  
+Then that creator is not in the shortlist
+
+### A16. Query planner expands DE/FI briefs into local terms (heuristic)
+
+Given keywords "budget gaming PC" and market DE  
+When the planner runs without an LLM key  
+Then expansions include a German term such as Preis-Leistung or gebraucht  
+Given market FI  
+Then expansions include a Finnish term such as pelikone or käytetty
+
+### A17. Pitch returns local + en; local uses query language
+
+Given a German-language query and a German creator  
+When outreach is generated  
+Then `suggestedPitch.en` and `suggestedPitch.local` both mention Prenew  
+And `suggestedPitch.language` is `de`  
+And the local pitch is not identical to the English pitch
+
+### A18. CSV export includes handle, platform, score, contact, hiddenGem
+
+Given a shortlist item  
+When CSV is generated  
+Then the header includes handle, platform, fit, hiddenGem, contact  
+And the row includes the item handle
+
+### A19. Brand-safety red flag or competitor sponsor lowers total
+
+Given two otherwise similar creators  
+And one mentions a competitor sponsor such as Mindfactory  
+When both are scored  
+Then the competitor-sponsored creator’s `fit.total` is lower  
+And `competitorSponsor` or `redFlags` is set
+
+### A20. Contact extractor finds email in bio text and ignores noreply
+
+Given bio text containing hello@studio.de and noreply@platform.com  
+When emails are extracted  
+Then hello@studio.de is returned  
+And noreply@platform.com is not

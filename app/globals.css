@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #10140f;
+  --bg: #0e120c;
   --panel: #171c16;
   --line: #2a3327;
   --ink: #e7ebe3;
@@ -11,7 +11,14 @@
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #1c2618 0%, transparent 55%),
+    var(--bg);
   color: var(--ink);
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+button,
+select,
+input {
+  font: inherit;
 }
