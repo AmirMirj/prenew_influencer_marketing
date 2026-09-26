@@ -1,0 +1,31 @@
+export const PRENEW_BRAND = {
+  name: "Prenew",
+  product: "refurbished gaming PCs",
+  valueProp:
+    "same performance as new retail, roughly 20% cheaper, warranty included, less risk than P2P",
+  relevantNiches: [
+    "gaming",
+    "pc build",
+    "hardware review",
+    "budget gaming",
+    "refurbished",
+    "second-hand tech",
+  ],
+  relevantTokens: [
+    "gaming",
+    "gamer",
+    "pc",
+    "hardware",
+    "budget",
+    "value",
+    "refurbished",
+    "refurb",
+    "second-hand",
+    "secondhand",
+    "used",
+    "build",
+    "rtx",
+    "gpu",
+    "cpu",
+  ],
+} as const;
