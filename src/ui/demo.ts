@@ -81,3 +81,10 @@ export function demoStepAt(index: number): DemoStep {
 export function shouldAutoStartDemo(search: string): boolean {
   return /(?:^|[?&])demo(?:=1|&|$)/.test(search);
 }
+
+export const HOW_IT_WORKS = [
+  { id: "niche", label: "Select Niche" },
+  { id: "specs", label: "View Curated Specs" },
+  { id: "pitch", label: "Copy Pitch" },
+  { id: "api", label: "Scale with API" },
+] as const;

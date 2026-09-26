@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FIXTURE_CREATORS } from "@/src/fixtures/creators";
-import { resolveContact, suggestPitch } from "./pitch";
+import { pitchHook, resolveContact, suggestPitch } from "./pitch";
 
 const deQuery = { market: "DE", language: "de", keywords: "budget gaming PC" };
 
@@ -17,6 +17,9 @@ describe("outreach", () => {
         creator!.nicheTags.some((tag) => pitch.en.toLowerCase().includes(tag)),
     ).toBe(true);
     expect(pitch.en.length).toBeLessThanOrEqual(400);
+    expect(pitch.local).toMatch(/Gebraucht|Garantie|Neupreis/);
+    expect(pitch.en).not.toMatch(/@/);
+    expect(pitch.en.toLowerCase()).not.toMatch(/follower|we shipped|4070/);
   });
 
   it("Pitch returns local + en; local uses query language", () => {
@@ -50,5 +53,32 @@ describe("outreach", () => {
 
     expect(contact.status).toBe("missing");
     expect(contact.value).toBeUndefined();
+  });
+
+  it("picks a hardware hook from public creator signals", () => {
+    const ben = FIXTURE_CREATORS.find((item) => item.handle === "buildmitben")!;
+    const dez = FIXTURE_CREATORS.find((item) => item.handle === "dezgamez")!;
+    expect(pitchHook(ben)).toBe("value");
+    expect(pitchHook(dez)).toBe("audience");
+    const dezPitch = suggestPitch(dez, { market: "DE", language: "de", keywords: "hardware review GPU" });
+    expect(dezPitch.en.toLowerCase()).toMatch(/audience|viewers/);
+    expect(dezPitch.en.toLowerCase()).not.toMatch(/broadcast rig is a fit|we shipped/);
+    expect(dezPitch.en.length).toBeLessThanOrEqual(400);
+    expect(dezPitch.local.length).toBeLessThanOrEqual(400);
+  });
+
+  it("keeps Finnish value pitches under the cap and in-market", () => {
+    const creator = FIXTURE_CREATORS.find((item) => item.handle === "pelikonefi")!;
+    const pitch = suggestPitch(creator, {
+      market: "FI",
+      language: "fi",
+      keywords: "budget gaming PC",
+      companyName: "Prenew",
+    });
+    expect(pitchHook(creator)).toBe("value");
+    expect(pitch.local).toContain("kunnostettu");
+    expect(pitch.local).toContain("Prenew");
+    expect(pitch.local).toContain("Suomi");
+    expect(pitch.local.length).toBeLessThanOrEqual(400);
   });
 });

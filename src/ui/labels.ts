@@ -41,6 +41,14 @@ export function isEmail(value?: string): boolean {
   return Boolean(value && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(value));
 }
 
+export function copyButtonLabel(copied: boolean, idle: string): string {
+  return copied ? "Copied to Clipboard!" : idle;
+}
+
+export function pitchTemplate(body: string, brand: string): string {
+  return `Subject: Hardware Partnership / ${brand}\n\n${body}`;
+}
+
 export function whyOneLiner(item: {
   fit: { hiddenGem: boolean; reasons: string[]; engagementQuality: number };
   followerCount: number;

@@ -12,7 +12,8 @@
 
 body {
   background:
-    radial-gradient(1200px 500px at 10% -10%, #1c2618 0%, transparent 55%),
+    radial-gradient(900px 420px at 8% -8%, #1a2416 0%, transparent 50%),
+    radial-gradient(700px 380px at 110% 0%, #141910 0%, transparent 45%),
     var(--bg);
   color: var(--ink);
 }
@@ -21,4 +22,8 @@ button,
 select,
 input {
   font: inherit;
+}
+
+.font-pitch {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }

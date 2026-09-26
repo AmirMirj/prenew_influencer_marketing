@@ -1,10 +1,26 @@
-import { DEMO_STEPS } from "./demo";
+import { DEMO_STEPS, HOW_IT_WORKS } from "./demo";
+
+export function HowItWorksBar({ id }: { id?: string }) {
+  return (
+    <ol
+      id={id}
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[var(--muted)]"
+    >
+      {HOW_IT_WORKS.map((step, index) => (
+        <li key={step.id} className="flex items-center gap-3">
+          {index > 0 ? <span aria-hidden>➔</span> : null}
+          <span>{step.label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 export function DemoGuide({
   stepIndex,
   playing,
   busy,
-  onPlay,
+  onPlay: _onPlay,
   onNext,
   onBack,
   onExit,
@@ -18,15 +34,7 @@ export function DemoGuide({
   onExit: () => void;
 }) {
   if (!playing) {
-    return (
-      <button
-        type="button"
-        className="w-fit rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium"
-        onClick={onPlay}
-      >
-        Play demo
-      </button>
-    );
+    return null;
   }
 
   const step = DEMO_STEPS[stepIndex];

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
 const sans = IBM_Plex_Sans({
@@ -7,9 +7,15 @@ const sans = IBM_Plex_Sans({
   weight: ["400", "500", "600"],
 });
 
-const title = "Reach — find small gaming creators other tools miss";
+const mono = IBM_Plex_Mono({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+});
+
+const title = "Reach — curated gaming shortlist + pitch in 5 seconds";
 const description =
-  "Ranked micro-influencers for refurbished gaming PCs. Local-language search, hidden gems, outreach-ready pitches.";
+  "No account needed. Pick a niche and market, then copy an outreach-ready pitch from a curated European hardware creator index.";
 
 export const metadata: Metadata = {
   title,
@@ -30,7 +36,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${sans.className} min-h-screen antialiased`}>{children}</body>
+      <body className={`${sans.className} ${mono.variable} min-h-screen antialiased`}>{children}</body>
     </html>
   );
 }

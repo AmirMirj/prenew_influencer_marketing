@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_STEPS, demoStepAt, shouldAutoStartDemo } from "./demo";
+import { DEMO_STEPS, HOW_IT_WORKS, demoStepAt, shouldAutoStartDemo } from "./demo";
 
 describe("Reach demo", () => {
   it("walks brief → gems → yield → email Ben → contrast DezGamez", () => {
@@ -21,5 +21,14 @@ describe("Reach demo", () => {
   it("starts from ?demo=1", () => {
     expect(shouldAutoStartDemo("?demo=1")).toBe(true);
     expect(shouldAutoStartDemo("?market=DE")).toBe(false);
+  });
+
+  it("maps the product as a four-step loop", () => {
+    expect(HOW_IT_WORKS.map((step) => step.label)).toEqual([
+      "Select Niche",
+      "View Curated Specs",
+      "Copy Pitch",
+      "Scale with API",
+    ]);
   });
 });
