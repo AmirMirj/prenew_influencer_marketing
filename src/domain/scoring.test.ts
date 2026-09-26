@@ -58,4 +58,15 @@ describe("scoreFit", () => {
     expect(german.audienceMatch).toBeGreaterThan(lifestyle.audienceMatch);
     expect(german.total).toBeGreaterThan(lifestyle.total);
   });
+
+  it("brand fit scores refurbished-gaming content above lifestyle without an empty-token guard", () => {
+    const gaming = scoreFit(microGaming, query);
+    const lifestyle = scoreFit(megaLifestyle, query);
+
+    expect(gaming.brandFit).toBeGreaterThan(0);
+    expect(gaming.brandFit).toBeLessThanOrEqual(100);
+    expect(gaming.brandFit).toBeGreaterThan(lifestyle.brandFit);
+    expect(lifestyle.brandFit).toBeLessThan(40);
+  });
 });
+
